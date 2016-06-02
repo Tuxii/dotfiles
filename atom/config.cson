@@ -1,0 +1,38 @@
+"*":
+  "activate-power-mode":
+    screenShake:
+      enabled: false
+  "atom-beautify":
+    general:
+      _analyticsUserId: "2d89634e-569a-4025-90b5-79288c1c77b1"
+  core:
+    disabledPackages: [
+      "wrap-guide"
+      "ruby-block-converter"
+    ]
+    packagesWithKeymapsDisabled: [
+      "emmet"
+    ]
+  "custom-title":
+    template: "<% if (relativeFilePath){ %><%= relativeFilePath %><% } else { %><%= fileName %><% } %><% if (projectPath) { %> - <%= projectName %><% if (gitHead) { %> [<%= gitHead %>]<% } %><% } %>"
+  editor:
+    fontSize: 17
+    invisibles: {}
+    scrollPastEnd: true
+    showIndentGuide: true
+    showInvisibles: true
+    softWrap: true
+    tabType: "soft"
+  emmet: {}
+  "exception-reporting":
+    userId: "e83ec819-10a2-a8a9-b331-93744524b609"
+  "linter-ruby": {}
+  minimap:
+    plugins:
+      pigments: true
+      pigmentsDecorationsZIndex: 0
+    scrollAnimation: true
+    scrollAnimationDuration: 200
+  welcome:
+    showOnStartup: false
+  whitespace: {}
