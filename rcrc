@@ -1,2 +1,2 @@
-EXCLUDES="README.md packages.list"
+EXCLUDES="README.md packages.list zprezto"
 SYMLINK_DIRS="extensions"

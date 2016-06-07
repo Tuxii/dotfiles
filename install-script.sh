@@ -2,11 +2,11 @@
 
 RCRC=rcrc rcup
 
-ln -s ~/.dotfiles/zprezto/runcoms/zlogin ~/.zlogin
-ln -s ~/.dotfiles/zprezto/runcoms/zlogout ~/.zlogout
-ln -s ~/.dotfiles/zprezto/runcoms/zpreztorc ~/.zpreztorc
-ln -s ~/.dotfiles/zprezto/runcoms/zprofile ~/.zprofile
-ln -s ~/.dotfiles/zprezto/runcoms/zshenv ~/.zshenv
-ln -s ~/.dotfiles/zprezto/runcoms/zshrc ~/.zshrc
+ln -sf ~/.dotfiles/zprezto/runcoms/zlogin ~/.zlogin
+ln -sf ~/.dotfiles/zprezto/runcoms/zlogout ~/.zlogout
+ln -sf ~/.dotfiles/zprezto/runcoms/zpreztorc ~/.zpreztorc
+ln -sf ~/.dotfiles/zprezto/runcoms/zprofile ~/.zprofile
+ln -sf ~/.dotfiles/zprezto/runcoms/zshenv ~/.zshenv
+ln -sf ~/.dotfiles/zprezto/runcoms/zshrc ~/.zshrc
 
 chsh -s /usr/bin/zsh
