@@ -9,6 +9,7 @@
     disabledPackages: [
       "wrap-guide"
       "ruby-block-converter"
+      "Remote-FTP"
     ]
     packagesWithKeymapsDisabled: [
       "emmet"
