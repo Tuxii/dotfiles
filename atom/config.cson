@@ -10,6 +10,7 @@
       "wrap-guide"
       "ruby-block-converter"
       "Remote-FTP"
+      "sync-settings"
     ]
     packagesWithKeymapsDisabled: [
       "emmet"
@@ -17,7 +18,7 @@
   "custom-title":
     template: "<% if (relativeFilePath){ %><%= relativeFilePath %><% } else { %><%= fileName %><% } %><% if (projectPath) { %> - <%= projectName %><% if (gitHead) { %> [<%= gitHead %>]<% } %><% } %>"
   editor:
-    fontSize: 17
+    fontSize: 15
     invisibles: {}
     scrollPastEnd: true
     showIndentGuide: true
@@ -34,6 +35,8 @@
       pigmentsDecorationsZIndex: 0
     scrollAnimation: true
     scrollAnimationDuration: 200
+  "sync-settings":
+    _analyticsUserId: "0e0b3eef-2dc7-4800-95a1-b024720baecb"
   welcome:
     showOnStartup: false
   whitespace: {}
