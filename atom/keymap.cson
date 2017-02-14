@@ -36,6 +36,13 @@
 
 '.platform-win32 atom-text-editor:not([mini]), .platform-linux atom-text-editor:not([mini])':
   'ctrl-e': 'emmet:expand-abbreviation'
+  'ctrl-/': 'editor:toggle-line-comments'
+  'ctrl-:': 'editor:toggle-line-comments'
+  'ctrl-(': 'tree-view:reveal-active-file'
+
 
 'atom-text-editor':
   'ctrl-shift-.': 'erb-snippets:erb_tags'
+
+'.platform-win32 atom-workspace, .platform-linux atom-workspace':
+  'ctrl-alt-n': 'advanced-open-file:toggle'

@@ -19,3 +19,17 @@ export PATH="$HOME/.rbenv/plugins/ruby-build/bin:$PATH"
 BASE16_SHELL="$HOME/.config/base16-shell/base16-ocean.dark.sh"
 [[ -s $BASE16_SHELL ]] && source $BASE16_SHELL
 export PATH="$HOME/.rbenv/bin:$PATH"
+source /etc/profile.d/vte.sh
+
+
+# Aliases
+alias gst='git status'
+alias ga='git add'
+alias gaa='git add --all'
+
+# FUCK
+eval "$(thefuck --alias)"
+# You can use whatever you want as an alias, like for Mondays:
+eval "$(thefuck --alias FUCK)"
+
+export EDITOR="atom --wait"

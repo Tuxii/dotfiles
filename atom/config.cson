@@ -1,25 +1,56 @@
 "*":
   "activate-power-mode":
+    comboMode:
+      activationThreshold: 1
+      opacity: 0.5
+      streakTimeout: 30
+    particles: {}
+    playAudio: {}
     screenShake:
       enabled: false
+      maxIntensity: 10
   "atom-beautify":
     general:
       _analyticsUserId: "2d89634e-569a-4025-90b5-79288c1c77b1"
   core:
+    autoHideMenuBar: true
     disabledPackages: [
-      "wrap-guide"
       "ruby-block-converter"
       "Remote-FTP"
-      "sync-settings"
+      "linter-ruby"
+      "git-blame"
+      "git-diff-details"
+      "activate-power-mode"
+      "up2date"
+    ]
+    ignoredNames: [
+      ".git"
+      ".hg"
+      ".svn"
+      ".DS_Store"
+      "._*"
+      "Thumbs.db"
+      "node_modules"
+      "tmp/*"
+      "log/*"
     ]
     packagesWithKeymapsDisabled: [
       "emmet"
     ]
+    telemetryConsent: "limited"
   "custom-title":
     template: "<% if (relativeFilePath){ %><%= relativeFilePath %><% } else { %><%= fileName %><% } %><% if (projectPath) { %> - <%= projectName %><% if (gitHead) { %> [<%= gitHead %>]<% } %><% } %>"
+  dash:
+    grammars:
+      Ruby: [
+        "ruby"
+        "rubygems"
+        "rails"
+      ]
   editor:
     fontSize: 15
     invisibles: {}
+    preferredLineLength: 120
     scrollPastEnd: true
     showIndentGuide: true
     showInvisibles: true
@@ -28,15 +59,38 @@
   emmet: {}
   "exception-reporting":
     userId: "e83ec819-10a2-a8a9-b331-93744524b609"
+  linter:
+    showErrorPanel: false
+  "linter-rubocop":
+    command: "/home/pierre/.rbenv/shims/rubocop"
+    disableWhenNoConfigFile: true
   "linter-ruby": {}
+  "markdown-preview":
+    breakOnSingleNewline: true
+    useGitHubStyle: true
   minimap:
     plugins:
       pigments: true
       pigmentsDecorationsZIndex: 0
     scrollAnimation: true
     scrollAnimationDuration: 200
-  "sync-settings":
-    _analyticsUserId: "0e0b3eef-2dc7-4800-95a1-b024720baecb"
+  "one-dark-ui": {}
+  "one-light-ui": {}
+  pigments:
+    notifyReloads: false
+  "project-plus":
+    notifications: false
+  "terminal-plus":
+    core: {}
+  "tool-bar":
+    fullWidth: false
+    iconSize: "16px"
+    position: "Left"
+  "tree-view":
+    hideVcsIgnoredFiles: true
   welcome:
     showOnStartup: false
-  whitespace: {}
+  whitespace:
+    ignoreWhitespaceOnCurrentLine: false
+  zentabs:
+    maximumOpenedTabs: 10
