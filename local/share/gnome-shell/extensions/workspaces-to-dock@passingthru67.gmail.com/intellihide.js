@@ -40,10 +40,23 @@ const handledWindowTypes2 = [
     Meta.WindowType.TOOLTIP
 ];
 
-const OverviewOption = {
-    SHOW: 0,        // Dock is always visible
+const IntellihideAction = {
+    SHOW_FULL: 0,
+    SHOW_PARTIAL: 1,
+    SHOW_PARTIAL_FIXED: 2
+};
+
+const OverviewAction = {
+    SHOW_FULL: 0,        // Dock is always visible
     HIDE: 1,        // Dock is always invisible. Visible on mouse hover
-    PARTIAL: 2      // Dock partially hidden. Visible on mouse hover
+    SHOW_PARTIAL: 2      // Dock partially hidden. Visible on mouse hover
+};
+
+const DockState = {
+    HIDDEN:  0,
+    SHOWING: 1,
+    SHOWN:   2,
+    HIDING:  3
 };
 
 let GSFunctions = {};
@@ -148,16 +161,28 @@ const Intellihide = new Lang.Class({
                 'restacked',
                 Lang.bind(this, this._onScreenRestacked)
             ],
+            // when windows are alwasy on top, the focus window can change
+            // without the windows being restacked. Thus monitor window focus change.
+            [
+                this._tracker,
+                'notify::focus-app',
+                Lang.bind(this, this._onFocusAppChanged)
+            ],
             // Set visibility in overview mode
             [
                 Main.overview,
                 'showing',
-                Lang.bind(this, this._overviewEnter)
+                Lang.bind(this, this._overviewEntered)
             ],
             [
                 Main.overview,
                 'hiding',
-                Lang.bind(this,this._overviewExit)
+                Lang.bind(this,this._overviewExiting)
+            ],
+            [
+                Main.overview,
+                'hidden',
+                Lang.bind(this,this._overviewExited)
             ],
             // window-drag-events emitted from workspaces thumbnail window dragging action
             [
@@ -339,6 +364,11 @@ const Intellihide = new Lang.Class({
         this._updateDockVisibility();
     },
 
+    // handler for when app focus changed
+    _onFocusAppChanged: function() {
+        this._updateDockVisibility();
+    },
+
     // handler for when monitor changes
     _onMonitorsChanged: function() {
         // disconnect bgManager signals
@@ -372,25 +402,44 @@ const Intellihide = new Lang.Class({
     _onWindowDragBegin: function() {
         Main.overview.show();
         this._toggledOverviewOnDrag = true;
-        this._show();
+        this._show(true);
     },
 
     // handler for when thumbnail windows dragging cancelled
     _onWindowDragCancelled: function() {
         if (this._toggledOverviewOnDrag) {
             this._toggledOverviewOnDrag = false;
+
+            if (this._inOverview) {
+                if (Main.overview.viewSelector._activePage == Main.overview.viewSelector._workspacesPage) {
+                    this._hide(true);
+                } else {
+                    this._hide();
+                }
+            }
         }
     },
 
     // handler for when thumbnail windows dragging ended
     _onWindowDragEnd: function() {
+        if (this._toggledOverviewOnDrag) {
+            this._toggledOverviewOnDrag = false;
+
+            if (this._inOverview) {
+                if (Main.overview.viewSelector._activePage == Main.overview.viewSelector._workspacesPage) {
+                    this._hide(true);
+                } else {
+                    this._hide();
+                }
+            }
+        }
     },
 
     // handler for when app icon dragging started
     _onItemDragBegin: function() {
         Main.overview.show();
         this._toggledOverviewOnDrag = true;
-        this._show();
+        this._show(true);
     },
 
     // handler for when app icon dragging cancelled
@@ -401,8 +450,11 @@ const Intellihide = new Lang.Class({
             // Should we hide the dock?
             // GS38+ remains in same overview mode, therefore we need to detect mode to determine if we should hide dock.
             if (this._inOverview) {
-                if (Main.overview.viewSelector._activePage != Main.overview.viewSelector._workspacesPage)
+                if (Main.overview.viewSelector._activePage == Main.overview.viewSelector._workspacesPage) {
+                    this._hide(true);
+                } else {
                     this._hide();
+                }
             }
         }
     },
@@ -415,31 +467,46 @@ const Intellihide = new Lang.Class({
             // Should we hide the dock?
             // GS38+ remains in same overview mode, therefore we need to detect mode to determine if we should hide dock.
             if (this._inOverview) {
-                if (Main.overview.viewSelector._activePage != Main.overview.viewSelector._workspacesPage)
+                if (Main.overview.viewSelector._activePage == Main.overview.viewSelector._workspacesPage) {
+                    this._hide(true);
+                } else {
                     this._hide();
+                }
             }
         }
     },
 
-    // handler for when overview mode exited
-    _overviewExit: function() {
+    // handler for when overview mode exiting
+    _overviewExiting: function() {
         this._inOverview = false;
         this._updateDockVisibility();
     },
 
+    // handler for when overview mode exited
+    _overviewExited: function() {
+    },
+
     // handler for when overview mode entered
-    _overviewEnter: function() {
+    _overviewEntered: function() {
         this._inOverview = true;
-        let overviewAction = this._settings.get_enum('overview-action');
-        if (overviewAction == OverviewOption.SHOW) {
-            if (Main.overview.viewSelector._activePage == Main.overview.viewSelector._workspacesPage) {
+        if (Main.overview.viewSelector._activePage == Main.overview.viewSelector._workspacesPage) {
+            if (this._settings.get_boolean('dock-fixed')) {
                 this._show();
             } else {
-                this._hide();
+                let overviewAction = this._settings.get_enum('overview-action');
+                if (overviewAction == OverviewAction.SHOW_FULL) {
+                    this._show(true);
+                } else if (overviewAction == OverviewAction.SHOW_PARTIAL) {
+                    if (this._dock._dockState == DockState.SHOWING || this._dock._dockState == DockState.SHOWN) {
+                        this._hide(true);
+                    } else {
+                        this._show();
+                    }
+                } else if (overviewAction == OverviewAction.HIDE) {
+                    this._hide();
+                }
             }
-        } else if (overviewAction == OverviewOption.HIDE) {
-            this._hide();
-        } else if (overviewAction == OverviewOption.PARTIAL) {
+        } else {
             this._hide();
         }
     },
@@ -456,13 +523,21 @@ const Intellihide = new Lang.Class({
 
         if (this._inOverview) {
             if (newPage == Main.overview.viewSelector._workspacesPage) {
-                let overviewAction = this._settings.get_enum('overview-action');
-                if (overviewAction == OverviewOption.SHOW) {
+                if (this._settings.get_boolean('dock-fixed')) {
                     this._show();
-                } else if (overviewAction == OverviewOption.HIDE) {
-                    this._hide();
-                } else if (overviewAction == OverviewOption.PARTIAL) {
-                    this._hide();
+                } else {
+                    let overviewAction = this._settings.get_enum('overview-action');
+                    if (overviewAction == OverviewAction.SHOW_FULL) {
+                        this._show(true);
+                    } else if (overviewAction == OverviewAction.SHOW_PARTIAL) {
+                        if (this._dock._dockState == DockState.SHOWING || this._dock._dockState == DockState.SHOWN) {
+                            this._hide(true);
+                        } else {
+                            this._show();
+                        }
+                    } else if (overviewAction == OverviewAction.HIDE) {
+                        this._hide();
+                    }
                 }
             } else {
                 this._hide();
@@ -476,15 +551,39 @@ const Intellihide = new Lang.Class({
         let idx = source._grabStack.length - 1;
         let focusedActor = source._grabStack[idx].actor;
         let [rx, ry] = focusedActor.get_transformed_position();
-        let [rwidth, rheight] = focusedActor.get_size();
+        let [rw, rh] = focusedActor.get_size();
         let [dx, dy] = this._dock.actor.get_position();
-        let [dwidth, dheight] = this._dock.actor.get_size();
-        let test;
-        if (this._dock._position == St.Side.LEFT) {
-            test = (rx < dx + dwidth) && (rx + rwidth > dx) && (ry < dy + dheight) && (ry + rheight > dy);
-        } else if (this._dock._position == St.Side.RIGHT) {
-            test = (rx < dx) && (rx + rwidth > dx - dwidth) && (ry < dy + dheight) && (ry + rheight > dy);
+        let [dw, dh] = this._dock.actor.get_size();
+        let [dcx, dcy] = this._dock._container.get_transformed_position();
+        let [dcw, dch] = this._dock._container.get_size();
+
+        if (this._dock._isHorizontal) {
+            dx = dcx;
+            dw = dcw;
+            let intellihideAction = this._settings.get_enum('intellihide-action');
+            if (intellihideAction == IntellihideAction.SHOW_PARTIAL || intellihideAction == IntellihideAction.SHOW_PARTIAL_FIXED) {
+                if (this._dock._slider.partialSlideoutSize)
+                    dh = this._dock._slider.partialSlideoutSize;
+            }
+        } else {
+            dy = dcy;
+            dh = dch;
+            let intellihideAction = this._settings.get_enum('intellihide-action');
+            if (intellihideAction == intellihideAction.SHOW_PARTIAL || intellihideAction == IntellihideAction.SHOW_PARTIAL_FIXED) {
+                if (this._dock._slider.partialSlideoutSize)
+                    dw = this._dock._slider.partialSlideoutSize;
+            }
         }
+
+        let test;
+        if (this._dock._position == St.Side.LEFT || this._dock._position == St.Side.TOP) {
+            test = (rx < dx + dw) && (rx + rw > dx) && (ry < dy + dh) && (ry + rh > dy);
+        } else if (this._dock._position == St.Side.RIGHT) {
+            test = (rx < dx) && (rx + rw > dx - dw) && (ry < dy + dh) && (ry + rh > dy);
+        } else if (this._dock._position == St.Side.BOTTOM) {
+            test = (rx < dx + dw) && (rx + rw > dx) && (ry + rh > dy - dh) && (ry < dy);
+        }
+
         if (test) {
             this._disableIntellihide = true;
             this._hide();
@@ -545,28 +644,30 @@ const Intellihide = new Lang.Class({
     },
 
     // intellihide function to show dock
-    _show: function() {
+    _show: function(force) {
         if (this._settings.get_boolean('dock-fixed')) {
             this._dock.fadeInDock(0, 0);
         } else {
-            this._dock.disableAutoHide();
+            if (force) {
+                this._dock.disableAutoHide(true);
+            } else {
+                this._dock.disableAutoHide();
+            }
         }
         this.status = true;
     },
 
     // intellihide function to hide dock
-    _hide: function(metaOverlap) {
+    _hide: function(dontforce) {
         this.status = false;
         if (this._settings.get_boolean('dock-fixed')) {
-            if (metaOverlap) {
-                // meta popup overlap initiated this hide
-                this._dock.fadeOutDock(0, 0, true);
-            } else {
-                // toppanel or messagetray or overview change initiated this hide
-                this._dock.fadeOutDock(0, 0, false);
-            }
+            this._dock.fadeOutDock(0, 0);
         } else {
-            this._dock.enableAutoHide();
+            if (dontforce) {
+                this._dock.enableAutoHide(true);
+            } else {
+                this._dock.enableAutoHide();
+            }
         }
     },
 
@@ -633,14 +734,39 @@ const Intellihide = new Lang.Class({
                         if (win) {
                             let rect = win.get_frame_rect();
                             let [dx, dy] = this._dock.actor.get_position();
-                            let [dwidth, dheight] = this._dock.actor.get_size();
+                            let [dw, dh] = this._dock.actor.get_size();
+                            let [dcx, dcy] = this._dock._container.get_transformed_position();
+                            let [dcw, dch] = this._dock._container.get_size();
+
+                            // SANITY CHECK
+                            // global.log("dx="+dx+" dy="+dy+" || dcx="+Math.round(dcx)+" dcy="+dcy);
+                            // global.log("dw="+dw+" dh="+dh+" || dcw="+dcw+" dch="+dch);
+
+                            if (this._dock._isHorizontal) {
+                                dx = dcx;
+                                dw = dcw;
+                                let intellihideAction = this._settings.get_enum('intellihide-action');
+                                if (intellihideAction == IntellihideAction.SHOW_PARTIAL || intellihideAction == IntellihideAction.SHOW_PARTIAL_FIXED) {
+                                    if (this._dock._slider.partialSlideoutSize)
+                                        dh = this._dock._slider.partialSlideoutSize;
+                                }
+                            } else {
+                                dy = dcy;
+                                dh = dch;
+                                let intellihideAction = this._settings.get_enum('intellihide-action');
+                                if (intellihideAction == IntellihideAction.SHOW_PARTIAL || intellihideAction == IntellihideAction.SHOW_PARTIAL_FIXED) {
+                                    if (this._dock._slider.partialSlideoutSize)
+                                        dw = this._dock._slider.partialSlideoutSize;
+                                }
+                            }
+
                             let test;
                             if (this._dock._position == St.Side.LEFT || this._dock._position == St.Side.TOP) {
-                                test = (rect.x < dx + dwidth) && (rect.x + rect.width > dx) && (rect.y < dy + dheight) && (rect.y + rect.height > dy);
+                                test = (rect.x < dx + dw) && (rect.x + rect.width > dx) && (rect.y < dy + dh) && (rect.y + rect.height > dy);
                             } else if (this._dock._position == St.Side.RIGHT) {
-                                test = (rect.x < dx) && (rect.x + rect.width > dx - dwidth) && (rect.y < dy + dheight) && (rect.y + rect.height > dy);
+                                test = (rect.x < dx) && (rect.x + rect.width > dx - dw) && (rect.y < dy + dh) && (rect.y + rect.height > dy);
                             } else if (this._dock._position == St.Side.BOTTOM) {
-                                test = (rect.x < dx + dwidth) && (rect.x + rect.width > dx) && (rect.y + rect.height > dy - dheight) && (rect.y < dy);
+                                test = (rect.x < dx + dw) && (rect.x + rect.width > dx) && (rect.y + rect.height > dy - dh) && (rect.y < dy);
                             }
                             if (test) {
                                 overlaps = true;
@@ -651,21 +777,29 @@ const Intellihide = new Lang.Class({
                 }
 
                 if (this._switchWorkspaceQuickShow && this._switchedWorkspace && this._quickShowTimeoutId == 0) {
-                    this._show();
+                    this._show(true);
                     let timeout = this._settings.get_double('quick-show-timeout');
                     this._quickShowTimeoutId = Mainloop.timeout_add(timeout, Lang.bind(this, this._quickShowExit));
                 } else {
                     if (this._quickShowTimeoutId == 0) {
                         if (overlaps) {
-                            this._hide(true);
+                            this._hide();
                         } else {
-                            this._show();
+                            if (this._settings.get_boolean('intellihide') && (this._settings.get_enum('intellihide-action') == IntellihideAction.SHOW_PARTIAL || this._settings.get_enum('intellihide-action') == IntellihideAction.SHOW_PARTIAL_FIXED)) {
+                                if (this._dock._dockState == DockState.SHOWING || this._dock._dockState == DockState.SHOWN) {
+                                    this._hide(true);
+                                } else {
+                                    this._show();
+                                }
+                            } else {
+                                this._show();
+                            }
                         }
                     }
                 }
             } else {
                 if (this._switchWorkspaceQuickShow && this._switchedWorkspace && this._quickShowTimeoutId == 0) {
-                    this._show();
+                    this._show(true);
                     let timeout = this._settings.get_double('quick-show-timeout');
                     this._quickShowTimeoutId = Mainloop.timeout_add(timeout, Lang.bind(this, this._quickShowExit));
                 } else {
@@ -750,7 +884,8 @@ const Intellihide = new Lang.Class({
         var wtype = metaWindow.get_window_type();
 
         if (grptype == null || grptype == 1) {
-            if (!this._settings.get_boolean('dock-fixed')) {
+            if (!this._settings.get_boolean('dock-fixed')
+            && !(this._settings.get_boolean('intellihide') && this._settings.get_enum('intellihide-action') == IntellihideAction.SHOW_PARTIAL_FIXED)) {
                 // Test primary window types .. only if dock is not fixed
                 for (var i = 0; i < handledWindowTypes.length; i++) {
                     var hwtype = handledWindowTypes[i];
@@ -762,11 +897,14 @@ const Intellihide = new Lang.Class({
         }
 
         if (grptype == null || grptype == 2) {
-            // Test secondary window types .. even if dock is fixed
-            for (var i = 0; i < handledWindowTypes2.length; i++) {
-                var hwtype = handledWindowTypes2[i];
-                if (hwtype == wtype) {
-                    return true;
+            // Test secondary window types .. only if dock is not fixed
+            if (!this._settings.get_boolean('dock-fixed')
+            && !(this._settings.get_boolean('intellihide') && this._settings.get_enum('intellihide-action') == IntellihideAction.SHOW_PARTIAL_FIXED)) {
+                for (var i = 0; i < handledWindowTypes2.length; i++) {
+                    var hwtype = handledWindowTypes2[i];
+                    if (hwtype == wtype) {
+                        return true;
+                    }
                 }
             }
         }

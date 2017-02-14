@@ -113,6 +113,8 @@ const MultiMonitorsThumbnailsBox = new Lang.Class({
     
     _init: function(monitorIndex) {
     	this._monitorIndex = monitorIndex;
+    	
+    	this._currentVersion = Config.PACKAGE_VERSION.split('.');
 
         this.actor = new Shell.GenericContainer({ reactive: true,
 									            style_class: 'workspace-thumbnails',
@@ -152,6 +154,9 @@ const MultiMonitorsThumbnailsBox = new Lang.Class({
 		
 		this.actor.connect('button-press-event', function() { return Clutter.EVENT_STOP; });
 		this.actor.connect('button-release-event', Lang.bind(this, this._onButtonRelease));
+		
+		if (this._currentVersion[0]==3 && this._currentVersion[1]>18)
+			this.actor.connect('touch-event', Lang.bind(this, this._onTouchEvent));
 		
 		this._showingId = Main.overview.connect('showing', Lang.bind(this, this._createThumbnails));
 		this._hiddenId = Main.overview.connect('hidden', Lang.bind(this, this._destroyThumbnails));
@@ -368,9 +373,13 @@ const MultiMonitorsControlsManager = new Lang.Class({
         this._thumbnailsBox = new MultiMonitorsThumbnailsBox(this._monitorIndex);
         this._thumbnailsSlider = new MultiMonitorsThumbnailsSlider(this._thumbnailsBox);
 
+        let reactiveFlag = false;
+        if(this._currentVersion[0]==3 && this._currentVersion[1]<22)
+        	reactiveFlag = true;
+        
         let layout = new OverviewControls.ControlsLayout();
         this.actor = new St.Widget({ layout_manager: layout,
-                                     reactive: true,
+                                     reactive: reactiveFlag,
                                      x_expand: true, y_expand: true,
                                      clip_to_allocation: true });
         this.actor.connect('destroy', Lang.bind(this, this._onDestroy));
@@ -461,7 +470,7 @@ const MultiMonitorsControlsManager = new Lang.Class({
                 if(this._currentVersion[0]==3 && this._currentVersion[1]==14)
                 	this._thumbnailsBox.actor.set_style_class_name('workspace-thumbnails-left-314');
                 else
-                	this._thumbnailsBox.actor.set_style_class_name('workspace-thumbnails-left');
+                	this._thumbnailsBox.actor.set_style_class_name('workspace-thumbnails workspace-thumbnails-left');
                 this._group.set_child_below_sibling(this._thumbnailsSlider.actor, first)
     		}
     	}
@@ -472,15 +481,14 @@ const MultiMonitorsControlsManager = new Lang.Class({
                 if(this._currentVersion[0]==3 && this._currentVersion[1]==14)
                 	this._thumbnailsBox.actor.remove_style_class_name('workspace-thumbnails-left-314');
                 else
-                	this._thumbnailsBox.actor.remove_style_class_name('workspace-thumbnails-left');
+                	this._thumbnailsBox.actor.remove_style_class_name('workspace-thumbnails workspace-thumbnails-left');
                 this._thumbnailsBox.actor.set_style_class_name('workspace-thumbnails');
                 this._group.set_child_above_sibling(this._thumbnailsSlider.actor, last);
     		}
     	}
     },
 
-    _updateWorkspacesGeometry: function() {
-	
+    getWorkspacesGeometry: function() {
 		let spacer_height = Main.layoutManager.primaryMonitor.height;
 		spacer_height -= Main.overview._controls.actor.get_transformed_size()[1];
 		if(Main.mmOverview[this._monitorIndex]._panelGhost)
@@ -489,7 +497,8 @@ const MultiMonitorsControlsManager = new Lang.Class({
 		if(spacer_height<spacer_min_height)
 			spacer_height = spacer_min_height;
 
-	    Main.mmOverview[this._monitorIndex]._spacer.set_height(spacer_height);
+		if (Main.mmOverview[this._monitorIndex]._spacer.get_height()!=spacer_height)
+			Main.mmOverview[this._monitorIndex]._spacer.set_height(spacer_height);
 	
         let [x, y] = this.actor.get_transformed_position();
         let [width, height] = this.actor.get_transformed_size();
@@ -500,17 +509,20 @@ const MultiMonitorsControlsManager = new Lang.Class({
         let thumbnailsWidth = this._thumbnailsSlider.getVisibleWidth() + spacing;
         
         geometry.width -= thumbnailsWidth;
-        
+
         if(this._settings.get_boolean(THUMBNAILS_ON_LEFT_SIDE_ID)){
             geometry.x += thumbnailsWidth;
         }
-        
+        return geometry;
+    },
+    
+    _updateWorkspacesGeometry: function() {
 //		let [x, y] = this._viewActor.get_transformed_position();
 //		let width = this._viewActor.allocation.x2 - this._viewActor.allocation.x1;
 //		let height = this._viewActor.allocation.y2 - this._viewActor.allocation.y1;
 //		let geometry = { x: x, y: y, width: width, height: height };
 
-        this.setWorkspacesFullGeometry(geometry);
+        this.setWorkspacesFullGeometry(this.getWorkspacesGeometry());
     },
 
     _setVisibility: function() {
@@ -568,7 +580,6 @@ const MultiMonitorsControlsManager = new Lang.Class({
     setWorkspacesFullGeometry: function(geom) {
     	if(!this._workspacesViews)
     		return;
-    	
 
         this._workspacesViews.setActualGeometry(geom);	
     },
@@ -590,22 +601,15 @@ const MultiMonitorsOverview = new Lang.Class({
 		
 		let monitor = Main.layoutManager.monitors[this.monitorIndex];
 		
-        let layout = new Clutter.BinLayout();
-        this._stack = new Clutter.Actor({ layout_manager: layout });
-        this._stack.add_constraint(new LayoutManager.MonitorConstraint({ index: this.monitorIndex }));
-        this._stack.connect('destroy', Lang.bind(this, this._onDestroy));
-        Main.layoutManager.overviewGroup.add_child(this._stack);
-        
-        
         this._overview = new St.BoxLayout({ name: 'overview'+this.monitorIndex,
 							                    accessible_name: _("Overview"+this.monitorIndex),
-							                    reactive: true,
-							                    vertical: true,
-							                    x_expand: true,
-							                    y_expand: true });
+							                    vertical: true});
+        this._overview.add_constraint(new LayoutManager.MonitorConstraint({ index: this.monitorIndex }));
+        this._overview.connect('destroy', Lang.bind(this, this._onDestroy));
         this._overview._delegate = this;
-        this._stack.add_actor(this._overview);
-        
+
+        Main.layoutManager.overviewGroup.add_child(this._overview);
+
         this._showingId = null;
         this._hidingId = null;
 	},
@@ -629,6 +633,10 @@ const MultiMonitorsOverview = new Lang.Class({
 		this._hidingId = Main.overview.connect('hiding', Lang.bind(this, this._hide));
 	},
 	
+	getWorkspacesGeometry: function() {
+		return this._controls.getWorkspacesGeometry();
+	},
+	
     _onDestroy: function(actor) {
 		if(this._showingId)
 			Main.overview.disconnect(this._showingId);
@@ -637,7 +645,7 @@ const MultiMonitorsOverview = new Lang.Class({
 	    
 	    Tweener.removeTweens(actor);
 	    
-	    Main.layoutManager.overviewGroup.remove_child(this._stack);
+	    Main.layoutManager.overviewGroup.remove_child(this._overview);
 	    
 	    this._overview._delegate = null;
     },
@@ -645,8 +653,8 @@ const MultiMonitorsOverview = new Lang.Class({
 	_show: function() {
 	    this._controls.show();
 		
-	    this._stack.opacity = 0;
-	    Tweener.addTween(this._stack,
+	    this._overview.opacity = 0;
+	    Tweener.addTween(this._overview,
 	                     { opacity: 255,
 	                       transition: 'easeOutQuad',
 	                       time: Overview.ANIMATION_TIME,
@@ -662,7 +670,7 @@ const MultiMonitorsOverview = new Lang.Class({
 	_hide: function() {
         this._controls.zoomFromOverview();
 
-        Tweener.addTween(this._stack,
+        Tweener.addTween(this._overview,
                          { opacity: 0,
                            transition: 'easeOutQuad',
                            time: Overview.ANIMATION_TIME,
@@ -676,7 +684,7 @@ const MultiMonitorsOverview = new Lang.Class({
 	},
 	
 	destroy: function() {
-		this._stack.destroy();
+		this._overview.destroy();
 	},
 	
 	addAction: function(action) {
@@ -684,6 +692,7 @@ const MultiMonitorsOverview = new Lang.Class({
 //	        return;
 	
 	    this._overview.add_action(action);
+//	    _overview >> _backgroundGroup
 	},
 
 	removeAction: function(action) {

@@ -10,10 +10,19 @@
     <value value='0' nick='OUTSIDE'/>
     <value value='1' nick='INSIDE'/>
   </enum>
-  <enum id='org.gnome.shell.extensions.workspaces-to-dock.overviewoption'>
-    <value value='0' nick='SHOW'/>
+  <enum id='org.gnome.shell.extensions.workspaces-to-dock.captionposition'>
+    <value value='0' nick='BOTTOM'/>
+    <value value='1' nick='TOP'/>
+  </enum>
+  <enum id='org.gnome.shell.extensions.workspaces-to-dock.overviewaction'>
+    <value value='0' nick='SHOW_FULL'/>
     <value value='1' nick='HIDE'/>
-    <value value='2' nick='PARTIAL'/>
+    <value value='2' nick='SHOW_PARTIAL'/>
+  </enum>
+  <enum id='org.gnome.shell.extensions.workspaces-to-dock.intellihideaction'>
+    <value value='0' nick='SHOW_FULL'/>
+    <value value='1' nick='SHOW_PARTIAL'/>
+    <value value='2' nick='SHOW_PARTIAL_FIXED'/>
   </enum>
   <schema path="/org/gnome/shell/extensions/workspaces-to-dock/" id="org.gnome.shell.extensions.workspaces-to-dock">
     <key type="b" name="dock-fixed">
@@ -61,6 +70,11 @@
       <summary>Leave dock edge visible when slid out</summary>
       <description>Enable or disable leaving dock edge visible when slid out</description>
     </key>
+    <key type="b" name="scroll-with-touchpad">
+      <default>false</default>
+      <summary>Enable to prevent multiple workspace switching when using touchpad</summary>
+      <description>Enable to prevent multiple workspace switching when using touchpad.</description>
+    </key>
     <key type="b" name="disable-scroll">
       <default>false</default>
       <summary>Disable scroll to prevent workspace switching when dock is slid out</summary>
@@ -95,11 +109,6 @@
       <default>true</default>
       <summary>Workspaces background is opaque</summary>
       <description>Makes the background of the workspaces opaque improving readability when in autohide mode.</description>
-    </key>
-    <key type="b" name="opaque-background-always">
-      <default>false</default>
-      <summary>Workspaces background always opaque</summary>
-      <description>Makes the background of the workspaces opaque improving readability even when not in autohide mode.</description>
     </key>
     <key type="d" name="background-opacity">
       <default>0.9</default>
@@ -151,10 +160,25 @@
       <summary>Set custom workspace thumbnail size</summary>
       <description>Set the custom size for the workspace thumbnail.</description>
     </key>
+    <key type="b" name="customize-thumbnail-visible-width">
+      <default>false</default>
+      <summary>Customize workspace thumbnail visible width</summary>
+      <description>Customize the workspace thumbnail visible width.</description>
+    </key>
+    <key type="d" name="thumbnail-visible-width">
+      <default>27</default>
+      <summary>Set custom workspace thumbnail visible width</summary>
+      <description>Set the custom visible width for the workspace thumbnail.</description>
+    </key>
     <key type="b" name="workspace-captions">
       <default>true</default>
       <summary>Show workspace captions</summary>
       <description>Enable or disable workspace captions.</description>
+    </key>
+    <key name="workspace-caption-position" enum="org.gnome.shell.extensions.workspaces-to-dock.captionposition">
+      <default>'BOTTOM'</default>
+      <summary>Set the workspace caption position</summary>
+      <description>Set the workspace caption position.</description>
     </key>
     <key type="d" name="workspace-caption-height">
       <default>22</default>
@@ -201,12 +225,16 @@
       <summary>Dock shown on Dash-To-Dock mouse over</summary>
       <description>Enable or disable Dash-To-Dock hover mode</description>
     </key>
-    <key name="overview-action" enum="org.gnome.shell.extensions.workspaces-to-dock.overviewoption">
-      <default>'PARTIAL'</default>
+    <key name="overview-action" enum="org.gnome.shell.extensions.workspaces-to-dock.overviewaction">
+      <default>'SHOW_FULL'</default>
       <summary>Show, hide, or partially hide the dock in overview mode</summary>
       <description>Show, hide, or partially hide the dock in overview mode.</description>
     </key>
-
+    <key name="intellihide-action" enum="org.gnome.shell.extensions.workspaces-to-dock.intellihideaction">
+      <default>'SHOW_FULL'</default>
+      <summary>Show full or partial dock when dock is not dodging windows</summary>
+      <description>Show full or partial dock when dock is not dodging windows.</description>
+    </key>
     <key type="b" name="quick-show-on-workspace-change">
       <default>false</default>
       <summary>Show the dock temporarily when switching workspaces</summary>

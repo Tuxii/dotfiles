@@ -23,6 +23,7 @@ const DND = imports.ui.dnd;
 const IconGrid = imports.ui.iconGrid;
 const Separator = imports.ui.separator;
 
+const Util = imports.misc.util;
 const ExtensionSystem = imports.ui.extensionSystem;
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = imports.misc.extensionUtils.getCurrentExtension();
@@ -43,6 +44,13 @@ const ShortcutsPanelOrientation = {
     OUTSIDE: 0,
     INSIDE: 1
 };
+
+// Filter out unnecessary windows, for instance nautilus desktop window.
+function getInterestingWindows(app) {
+    return app.get_windows().filter(function(w) {
+        return !w.skip_taskbar;
+    });
+}
 
 /* Return the actual position reverseing left and right in rtl */
 function getPosition(settings) {
@@ -115,6 +123,17 @@ const ShortcutButtonMenu = new Lang.Class({
     _redisplay: function() {
         this.removeAll();
 
+        // passingthru67: appsbutton menu to show extension preferences
+        if (this._source._type == ApplicationType.APPSBUTTON) {
+            let item = this._appendMenuItem(_("Extension Preferences"));
+            item.connect('activate', Lang.bind(this, function () {
+                // passingthru67: Should we use commandline or argv?
+                // Util.trySpawnCommandLine("gnome-shell-extension-prefs " + Me.metadata.uuid);
+                Util.spawn(["gnome-shell-extension-prefs", Me.metadata.uuid]);
+            }));
+            return;
+        }
+
         let windows = this._source._app.get_windows().filter(function(w) {
             return !w.skip_taskbar;
         });
@@ -139,15 +158,18 @@ const ShortcutButtonMenu = new Lang.Class({
         if (!this._source._app.is_window_backed()) {
             this._appendSeparator();
 
-            this._newWindowMenuItem = this._appendMenuItem(_("New Window"));
-            this._newWindowMenuItem.connect('activate', Lang.bind(this, function() {
-                this._source._app.open_new_window(-1);
-                this.emit('activate-window', null);
-            }));
-            this._appendSeparator();
-
             let appInfo = this._source._app.get_app_info();
             let actions = appInfo.list_actions();
+            if (this._source._app.can_open_new_window() &&
+                actions.indexOf('new-window') == -1) {
+                this._newWindowMenuItem = this._appendMenuItem(_("New Window"));
+                this._newWindowMenuItem.connect('activate', Lang.bind(this, function() {
+                    this._source._app.open_new_window(-1);
+                    this.emit('activate-window', null);
+                }));
+                this._appendSeparator();
+            }
+
             for (let i = 0; i < actions.length; i++) {
                 let action = actions[i];
                 let item = this._appendMenuItem(appInfo.get_action_name(action));
@@ -156,15 +178,46 @@ const ShortcutButtonMenu = new Lang.Class({
                     this.emit('activate-window', null);
                 }));
             }
-            this._appendSeparator();
 
-            let isFavorite = AppFavorites.getAppFavorites().isFavorite(this._source._app.get_id());
+            let canFavorite = global.settings.is_writable('favorite-apps');
 
-            if (isFavorite) {
-                let item = this._appendMenuItem(_("Remove from Favorites"));
+            if (canFavorite) {
+                this._appendSeparator();
+
+                let isFavorite = AppFavorites.getAppFavorites().isFavorite(this._source._app.get_id());
+
+                if (isFavorite) {
+                    let item = this._appendMenuItem(_("Remove from Favorites"));
+                    item.connect('activate', Lang.bind(this, function() {
+                        let favs = AppFavorites.getAppFavorites();
+                        favs.removeFavorite(this._source._app.get_id());
+                    }));
+                } else {
+                    let item = this._appendMenuItem(_("Add to Favorites"));
+                    item.connect('activate', Lang.bind(this, function() {
+                        let favs = AppFavorites.getAppFavorites();
+                        favs.addFavorite(this._source._app.get_id());
+                    }));
+                }
+            }
+
+            if (Shell.AppSystem.get_default().lookup_app('org.gnome.Software.desktop')) {
+                this._appendSeparator();
+                let item = this._appendMenuItem(_("Show Details"));
                 item.connect('activate', Lang.bind(this, function() {
-                    let favs = AppFavorites.getAppFavorites();
-                    favs.removeFavorite(this._source._app.get_id());
+                    let id = this._source._app.get_id();
+                    let args = GLib.Variant.new('(ss)', [id, '']);
+                    Gio.DBus.get(Gio.BusType.SESSION, null,
+                        function(o, res) {
+                            let bus = Gio.DBus.get_finish(res);
+                            bus.call('org.gnome.Software',
+                                     '/org/gnome/Software',
+                                     'org.gtk.Actions', 'Activate',
+                                     GLib.Variant.new('(sava{sv})',
+                                                      ['details', [args], null]),
+                                     null, 0, -1, null, null);
+                            Main.overview.hide();
+                        });
                 }));
             }
         }
@@ -332,7 +385,7 @@ const ShortcutButton = new Lang.Class({
     },
 
     _onButtonPress: function(actor, event) {
-        if (this._type == ApplicationType.APPLICATION) {
+        if (this._type == ApplicationType.APPSBUTTON || this._type == ApplicationType.APPLICATION) {
             let button = event.get_button();
             if (button == 1) {
                 this._removeMenuTimeout();
@@ -360,7 +413,12 @@ const ShortcutButton = new Lang.Class({
                     if (this._app == tracker.focus_app && !Main.overview._shown) {
                         this._cycleThroughWindows();
                     } else {
-                        this._app.activate();
+                        // If we activate the app (this._app.activate), all app
+                        // windows will come to the foreground. We only want to
+                        // activate one window at a time
+                        let windows = getInterestingWindows(this._app);
+                        let w = windows[0];
+                        Main.activateWindow(w);
                     }
                 } else {
                     this._app.open_new_window(-1);
@@ -406,9 +464,7 @@ const ShortcutButton = new Lang.Class({
         // since the order changes upon window interaction
         let MEMORY_TIME = 3000;
 
-        let appWindows = this._app.get_windows().filter(function(w) {
-            return !w.skip_taskbar;
-        });
+        let appWindows = getInterestingWindows(this._app);
 
         if(recentlyClickedAppLoopId>0)
             Mainloop.source_remove(recentlyClickedAppLoopId);
@@ -453,12 +509,13 @@ const ShortcutButton = new Lang.Class({
     },
 
     popupMenu: function() {
-        if (this._type != ApplicationType.APPLICATION)
+        if (this._type != ApplicationType.APPSBUTTON && this._type != ApplicationType.APPLICATION)
              return false;
 
         this._removeMenuTimeout();
         this.actor.fake_release();
-        this._draggable.fakeRelease();
+        if (this._draggable)
+            this._draggable.fakeRelease();
 
         if (!this._menu) {
             this._menu = new ShortcutButtonMenu(this);
@@ -479,7 +536,7 @@ const ShortcutButton = new Lang.Class({
         this._panel.setPopupMenuFlag(true);
         this._panel.hideThumbnails();
         this.actor.set_hover(true);
-        this._menu.popup();
+        this._menu.popup(this);
         this._menuManager.ignoreRelease();
 
         return false;
@@ -955,7 +1012,7 @@ const ShortcutsPanel = new Lang.Class({
         }
 
         // Add Apps Button to top or bottom of shortcuts panel
-        this._appsButton = new ShortcutButton(null, ApplicationType.APPSBUTTON);
+        this._appsButton = new ShortcutButton(null, ApplicationType.APPSBUTTON, this);
         if (this._settings.get_boolean('shortcuts-panel-appsbutton-at-bottom')) {
             let filler = new Separator.HorizontalSeparator({ style_class: 'popup-separator-menu-item workspacestodock-shortcut-panel-filler' });
             this.actor.add(filler.actor, { expand: true });
@@ -993,6 +1050,7 @@ const ShortcutsPanel = new Lang.Class({
         }
 
         this.emit('update-favorite-apps');
+        this._updateRunningApps();
     },
 
     _updateRunningApps: function() {
