@@ -19,17 +19,25 @@ export PATH="$HOME/.rbenv/plugins/ruby-build/bin:$PATH"
 BASE16_SHELL="$HOME/.config/base16-shell/base16-ocean.dark.sh"
 [[ -s $BASE16_SHELL ]] && source $BASE16_SHELL
 export PATH="$HOME/.rbenv/bin:$PATH"
-source /etc/profile.d/vte.sh
+
+# Terminix VTE
+if [ $TERMINIX_ID ] || [ $VTE_VERSION ]; then
+  source /etc/profile.d/vte.sh
+fi
 
 
-# Aliases
+#Aliases
+
+alias rc='nmh bin/rails console'
+alias rs='make dev'
+
 alias gst='git status'
 alias ga='git add'
 alias gaa='git add --all'
+alias gcm='git commit -m'
+alias dco='docker-compose'
 
 # FUCK
 eval "$(thefuck --alias)"
 # You can use whatever you want as an alias, like for Mondays:
 eval "$(thefuck --alias FUCK)"
-
-export EDITOR="atom --wait"
