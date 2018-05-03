@@ -33,6 +33,7 @@
 'atom-workspace atom-text-editor:not([mini])':
   'ctrl-shift-up': 'my:move-line-up'
   'ctrl-shift-down': 'my:move-line-down'
+  'ctrl-;': 'rails-snippets:toggleErb'
 
 '.platform-win32 atom-text-editor:not([mini]), .platform-linux atom-text-editor:not([mini])':
   'ctrl-e': 'emmet:expand-abbreviation'
@@ -43,6 +44,11 @@
 
 'atom-text-editor':
   'ctrl-shift-.': 'erb-snippets:erb_tags'
+  'alt-up': 'expand-region:expand'
+  'alt-down': 'expand-region:shrink'
 
 '.platform-win32 atom-workspace, .platform-linux atom-workspace':
   'ctrl-alt-n': 'advanced-open-file:toggle'
+
+'atom-text-editor[data-grammar~="ruby"]':
+  'alt-a': 'rubocop-auto-correct:current-file'

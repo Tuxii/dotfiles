@@ -19,13 +19,9 @@
 # If you are unfamiliar with CSON, you can read more about it in the
 # Atom Flight Manual:
 # https://atom.io/docs/latest/using-atom-basic-customization#cson
-'.text.html.htmlbars':
-  'Handlebars tag':
-    'prefix': 'er'
-    'body': '{{#$1}}$2{{/$3}}'
 '*':
   'ERB tag':
-    'prefix': 'er'
+    'prefix': 'or'
     'body': '<% $1 %>$2'
 '*':
   'ERB open tag':

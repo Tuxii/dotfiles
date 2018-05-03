@@ -25,14 +25,18 @@
 atom-text-editor {
   // color: white;
   // background-color: hsl(180, 24%, 12%);
-  font-family: "Monaco for Powerline";
+  font-family: "Monaco";
 }
 
 // To style other content in the text editor's shadow DOM, use the ::shadow expression
 atom-text-editor::shadow .cursor {
   // border-color: red;
 }
-.tab-bar .tab {
-  font-size: 14px;
-  font-weight: bold;
+.tab-bar {
+  height: 40px;
+  .tab {
+    line-height: 50px;
+    font-size: 14px;
+    font-weight: bold;
+  }
 }
