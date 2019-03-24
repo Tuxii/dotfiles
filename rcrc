@@ -1,2 +1,2 @@
-EXCLUDES="README.md packages.list zprezto Monaco_Linux-Powerline.ttf"
+EXCLUDES="README.md packages.list Monaco_Linux-Powerline.ttf"
 SYMLINK_DIRS="extensions"
